@@ -14,18 +14,22 @@ class Signer {
     this.request = request
     const regex = /(.+) Credential=(.+),\s*SignedHeaders=(.+),\s*Signature=(.+)/
     let match = regex.exec(headers.authorization)
-    this.headers = headers
-    this.algorithm = match[1]
-    this.credentialParts = match[2].split('/')
-    this.signedHeaders = match[3]
-    this.signedHeaderParts = this.signedHeaders.split(';')
+    if (match) {
+      this.headers = headers
+      this.algorithm = match[1]
+      this.credentialParts = match[2].split('/')
+      this.signedHeaders = match[3]
+      this.signedHeaderParts = this.signedHeaders.split(';')
 
-    this.region = this.credentialParts[2]
-    this.service = this.credentialParts[3]
-    this.requestIdentifier = this.credentialParts[4]
+      this.region = this.credentialParts[2]
+      this.service = this.credentialParts[3]
+      this.requestIdentifier = this.credentialParts[4]
 
-    if (this.algorithm != 'AWS4-HMAC-SHA256') {
-      throw(`Unsupported signing algorithm ${this.algorithm}`)
+      if (this.algorithm != 'AWS4-HMAC-SHA256') {
+        throw(`Unsupported signing algorithm ${this.algorithm}`)
+      }
+    } else {
+      throw("Credentials header missing")
     }
   }
 
