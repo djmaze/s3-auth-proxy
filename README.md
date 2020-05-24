@@ -49,6 +49,11 @@ The buckets are now available at http://localhost:8000. Non-specified buckets ar
 * `npm install`
 * `env ACCESSKEYID=... SECRETACCESSKEY=... UPSTREAM_URL=... UPSTREAM_ACCESSKEYID=... UPSTREAM_SECRETACCESSKEY=... ALLLOWED_BUCKETS=... npm start`
 
+## TODO
+
+- [ ] Only show whitelisted buckets in list
+- [ ] Allow wildcards for bucket whitelisting
+- [ ] Allow restricting to read-only access
 
 ## Credits
 
