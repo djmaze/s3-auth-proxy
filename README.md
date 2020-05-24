@@ -4,6 +4,8 @@ Reverse proxy for S3-compatible services which allows to restrict access to sele
 
 This is especially useful for DigitalOcean, because they currently do not provide a way to set permissions for their *Spaces* product.
 
+**Note:** Your client needs to be configured to use *path-based access* as opposed to the subdomain-based one.
+
 Listens on port 8000.
 
 ## Usage
