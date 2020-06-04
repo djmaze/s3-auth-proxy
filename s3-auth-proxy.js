@@ -37,7 +37,8 @@ var handle_request = function (client_request, client_response) {
           return
       }
 
-      const bucket = client_request.url.split('/')[1]
+      const request_url = url.parse(client_request.url)
+      const bucket = request_url.pathname.split('/')[1]
       if (bucket && !allowedBuckets.includes(bucket) && !bucket.startsWith('probe-bucket-sign-')) {
           console.error('disallowed bucket', bucket)
           client_response.writeHead(403)
