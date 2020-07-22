@@ -30,7 +30,7 @@ var handle_request = function (client_request, client_response) {
           verificationSigner.headers['x-amz-date']
       )
 
-      if (givenClientAuthorization != correctClientAuthorization) {
+      if (givenClientAuthorization.replace(/\s/g,'') !== correctClientAuthorization.replace(/\s/g,'')) {
           console.error('incorrect authorization', givenClientAuthorization)
           client_response.writeHead(403)
           client_response.end()
