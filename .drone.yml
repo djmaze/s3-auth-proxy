@@ -1,0 +1,52 @@
+---
+kind: pipeline
+name: release
+
+steps:
+    - name: build & push release
+      image: thegeeklab/drone-docker-buildx:20.11@sha256:327b6fb15dc841cf80c7c429f60d695efd7c7a476fe363afac25a58befd4c203
+      settings:
+          auto_tag: true
+          repo: mazzolino/s3-auth-proxy
+          platforms:
+              - linux/amd64
+              - linux/arm64
+              - linux/armhf
+          username:
+              from_secret: docker_username
+          password:
+              from_secret: docker_password
+
+trigger:
+    event:
+        exclude:
+            - pull_request
+
+---
+kind: pipeline
+name: pr
+
+steps:
+    - name: build & push PR
+      image: thegeeklab/drone-docker-buildx:20.11@sha256:327b6fb15dc841cf80c7c429f60d695efd7c7a476fe363afac25a58befd4c203
+      settings:
+          repo: mazzolino/s3-auth-proxy
+          tags:
+              - pr-${DRONE_PULL_REQUEST}
+          platforms:
+              - linux/amd64
+              - linux/arm64
+              - linux/armhf
+          username:
+              from_secret: docker_username
+          password:
+              from_secret: docker_password
+
+trigger:
+    event:
+        - pull_request
+---
+kind: signature
+hmac: a188539d0091b900e30b4e2906b17180f19ef912d03991340404150a47abfacd
+
+...
