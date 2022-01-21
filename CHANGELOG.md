@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.1](https://github.com/djmaze/s3-auth-proxy/tree/v0.2.1) (2022-01-21)
+
+[Full Changelog](https://github.com/djmaze/s3-auth-proxy/compare/v0.2.0...v0.2.1)
+
+**Fixed bugs:**
+
+- Fix parsing bucket name if url contains query parameters [\#4](https://github.com/djmaze/s3-auth-proxy/pull/4) ([djmaze](https://github.com/djmaze))
+
 ## [v0.2.0](https://github.com/djmaze/s3-auth-proxy/tree/v0.2.0) (2022-01-21)
 
 [Full Changelog](https://github.com/djmaze/s3-auth-proxy/compare/v0.1.0...v0.2.0)
