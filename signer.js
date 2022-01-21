@@ -87,7 +87,7 @@ class Signer {
             cacheQueue.push(cacheKey)
             if (cacheQueue.length > maxCacheEntries) {
                 // remove the oldest entry (not the least recently used)
-                delete cachedSecret[cacheQueue.shift()]
+                delete cachedKeys[cacheQueue.shift()]
             }
 
             return signingKey
@@ -98,12 +98,12 @@ class Signer {
         var parts = []
         parts.push("AWS4-HMAC-SHA256")
         parts.push(datetime)
-        parts.push(this.scope(datetime))
+        parts.push(this.scope())
         parts.push(this.hexEncodedHash(this.canonicalString()))
         return parts.join("\n")
     }
 
-    scope(datetime) {
+    scope() {
         return this.credentialParts.slice(1).join("/")
     }
 
