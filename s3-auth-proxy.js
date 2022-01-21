@@ -55,7 +55,7 @@ var handle_request = function (client_request, client_response) {
 
         const signer = new Signer(client_request)
         signer.changeAuthorization(
-            upstreamURL.hostname + ":" + upstreamURL.port,
+            upstreamURL.host,
             upstreamAccessKeyId,
             upstreamSecretAccessKey
         )
