@@ -41,7 +41,7 @@ var handle_request = function (client_request, client_response) {
             return
         }
 
-        const bucket = client_request.url.split("/")[1]
+        const bucket = client_request.url.split(/[/?]/)[1]
         if (
             bucket &&
             !allowedBuckets.includes(bucket) &&
