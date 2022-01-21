@@ -10,17 +10,23 @@ let cacheQueue = []
 const maxCacheEntries = 50
 
 class Signer {
-    constructor(request, headers) {
+    constructor(request) {
         this.request = request
+        this.headers = request.headers
+        const [path, queryString] = request.url.split("?", 2)
+        this.path = path
+        this.query = AWS.util.queryStringParse(queryString)
+
         const regex =
             /(.+) Credential=(.+),\s*SignedHeaders=(.+),\s*Signature=(.+)/
-        let match = regex.exec(headers.authorization)
+        let match = regex.exec(this.headers.authorization)
         if (match) {
-            this.headers = headers
+            this.presigned = false
             this.algorithm = match[1]
             this.credentialParts = match[2].split("/")
             this.signedHeaders = match[3]
             this.signedHeaderParts = this.signedHeaders.split(";")
+            this.datetime = this.headers["x-amz-date"]
 
             this.region = this.credentialParts[2]
             this.service = this.credentialParts[3]
@@ -29,33 +35,69 @@ class Signer {
             if (this.algorithm != "AWS4-HMAC-SHA256") {
                 throw `Unsupported signing algorithm ${this.algorithm}`
             }
+
+            this.authorizationHeader = this.headers.authorization
         } else {
-            throw "Credentials header missing"
+            if (this.query) {
+                this.presigned = true
+                this.algorithm = this.query["X-Amz-Algorithm"]
+                this.credentials = this.query["X-Amz-Credential"]
+                this.credentialParts = this.credentials.split("/")
+                this.signedHeaders = this.query["X-Amz-SignedHeaders"]
+                this.signedHeaderParts = this.signedHeaders.split(";")
+                this.datetime = this.query["X-Amz-Date"]
+
+                this.region = this.credentialParts[2]
+                this.service = this.credentialParts[3]
+                this.requestIdentifier = this.credentialParts[4]
+
+                const signature = this.query["X-Amz-Signature"]
+
+                if (this.algorithm != "AWS4-HMAC-SHA256") {
+                    throw `Unsupported signing algorithm ${this.algorithm}`
+                }
+
+                this.authorizationHeader = `${this.algorithm} Credential=${this.credentials}, SignedHeaders=${this.signedHeaders}, Signature=${signature}`
+            } else {
+                throw "Credentials missing"
+            }
         }
     }
 
-    changeAuthorization(accessKeyId, secretAccessKey) {
-        this.headers.authorization = this.authorization(
-            accessKeyId,
-            secretAccessKey,
-            this.headers["x-amz-date"]
-        )
+    changeAuthorization(newHost, accessKeyId, secretAccessKey) {
+        this.headers.host = newHost
+
+        if (this.presigned) {
+            this.query["X-Amz-Credential"] = this.credentialString(accessKeyId)
+            this.query["X-Amz-Signature"] = this.signature(
+                accessKeyId,
+                secretAccessKey,
+                this.datetime
+            )
+        } else {
+            this.headers.authorization = this.authorizationHeaderFor(
+                accessKeyId,
+                secretAccessKey
+            )
+        }
     }
 
-    authorization(accessKeyId, secretAccessKey, datetime) {
+    authorizationHeaderFor(accessKeyId, secretAccessKey) {
         var parts = []
-        parts.push(this.algorithm + " " + this.credentialString(accessKeyId))
+        parts.push(
+            this.algorithm + " Credential=" + this.credentialString(accessKeyId)
+        )
         parts.push("SignedHeaders=" + this.signedHeaders)
         parts.push(
             "Signature=" +
-                this.signature(accessKeyId, secretAccessKey, datetime)
+                this.signature(accessKeyId, secretAccessKey, this.datetime)
         )
         return parts.join(", ")
     }
 
     credentialString(accessKeyId) {
         this.credentialParts[0] = accessKeyId
-        return "Credential=" + this.credentialParts.join("/")
+        return this.credentialParts.join("/")
     }
 
     signature(accessKeyId, secretAccessKey, datetime) {
@@ -108,15 +150,18 @@ class Signer {
     }
 
     canonicalString() {
-        var parts = [],
-            pathname = this.pathname()
+        var parts = []
 
         parts.push(this.request.method)
-        parts.push(pathname)
-        parts.push(this.request_search())
+        parts.push(this.path)
+        parts.push(this.queryStringWithoutSignature())
         parts.push(this.canonicalHeaders() + "\n")
         parts.push(this.signedHeaders)
-        parts.push(this.hexEncodedBodyHash())
+        if (this.presigned) {
+            parts.push("UNSIGNED-PAYLOAD")
+        } else {
+            parts.push(this.hexEncodedBodyHash())
+        }
 
         return parts.join("\n")
     }
@@ -141,17 +186,20 @@ class Signer {
         return sha256(string, "hex")
     }
 
-    pathname() {
-        return this.request.url.split("?", 1)[0]
+    pathWithQuery() {
+        if (this.query) {
+            return [this.path, AWS.util.queryParamsToString(this.query)].join(
+                "?"
+            )
+        } else {
+            return this.path
+        }
     }
 
-    request_search() {
-        let query = this.request.url.split("?", 2)[1]
-        if (query) {
-            query = AWS.util.queryStringParse(query)
-            return AWS.util.queryParamsToString(query)
-        }
-        return ""
+    queryStringWithoutSignature() {
+        const q = { ...this.query }
+        delete q["X-Amz-Signature"]
+        return AWS.util.queryParamsToString(q)
     }
 }
 

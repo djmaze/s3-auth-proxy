@@ -3,13 +3,12 @@
 
 const http = require("http"),
     https = require("https"),
-    url = require("url"),
     Signer = require("./signer")
 
 const port = 8000,
     accessKeyId = process.env.ACCESSKEYID,
     secretAccessKey = process.env.SECRETACCESSKEY,
-    upstreamURL = url.parse(process.env.UPSTREAM_URL),
+    upstreamURL = new URL(process.env.UPSTREAM_URL),
     upstreamAccessKeyId = process.env.UPSTREAM_ACCESSKEYID,
     upstreamSecretAccessKey = process.env.UPSTREAM_SECRETACCESSKEY,
     allowedBuckets = process.env.ALLOWED_BUCKETS.split(",")
@@ -24,16 +23,13 @@ var main = function () {
 
 var handle_request = function (client_request, client_response) {
     try {
-        const verificationSigner = new Signer(
-            client_request,
-            client_request.headers
-        )
-        const givenClientAuthorization = client_request.headers.authorization
-        const correctClientAuthorization = verificationSigner.authorization(
-            accessKeyId,
-            secretAccessKey,
-            verificationSigner.headers["x-amz-date"]
-        )
+        const verificationSigner = new Signer(client_request)
+        const givenClientAuthorization = verificationSigner.authorizationHeader
+        const correctClientAuthorization =
+            verificationSigner.authorizationHeaderFor(
+                accessKeyId,
+                secretAccessKey
+            )
 
         if (
             givenClientAuthorization.replace(/\s/g, "") !==
@@ -45,8 +41,7 @@ var handle_request = function (client_request, client_response) {
             return
         }
 
-        const request_url = url.parse(client_request.url)
-        const bucket = request_url.pathname.split("/")[1]
+        const bucket = client_request.url.split("/")[1]
         if (
             bucket &&
             !allowedBuckets.includes(bucket) &&
@@ -58,20 +53,21 @@ var handle_request = function (client_request, client_response) {
             return
         }
 
+        const signer = new Signer(client_request)
+        signer.changeAuthorization(
+            upstreamURL.hostname + ":" + upstreamURL.port,
+            upstreamAccessKeyId,
+            upstreamSecretAccessKey
+        )
+
         let options = {
             protocol: upstreamURL.protocol,
             host: upstreamURL.hostname,
             port: upstreamURL.port,
             method: client_request.method,
-            path: client_request.url,
-            headers: {
-                ...client_request.headers,
-                host: upstreamURL.host,
-            },
+            path: signer.pathWithQuery(),
+            headers: signer.headers,
         }
-
-        const signer = new Signer(client_request, options.headers)
-        signer.changeAuthorization(upstreamAccessKeyId, upstreamSecretAccessKey)
 
         let upstream_request
         if (options.protocol == "https:") {
