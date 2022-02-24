@@ -10,7 +10,7 @@ let cacheQueue = []
 const maxCacheEntries = 50
 
 class Signer {
-    constructor(request) {
+    constructor(request, logger) {
         this.request = request
         this.headers = request.headers
         const [path, queryString] = request.url.split("?", 2)
@@ -33,12 +33,16 @@ class Signer {
             this.requestIdentifier = this.credentialParts[4]
 
             if (this.algorithm != "AWS4-HMAC-SHA256") {
-                throw `Unsupported signing algorithm ${this.algorithm}`
+                logger.debug("headers:", this.headers)
+                throw new Error(
+                    `Unsupported signing algorithm ${this.algorithm}`
+                )
             }
 
             this.authorizationHeader = this.headers.authorization
         } else {
-            if (this.query) {
+            if (this.query.length) {
+                logger.debug("query:", this.query)
                 this.presigned = true
                 this.algorithm = this.query["X-Amz-Algorithm"]
                 this.credentials = this.query["X-Amz-Credential"]
@@ -59,7 +63,8 @@ class Signer {
 
                 this.authorizationHeader = `${this.algorithm} Credential=${this.credentials}, SignedHeaders=${this.signedHeaders}, Signature=${signature}`
             } else {
-                throw "Credentials missing"
+                logger.debug("headers:", this.headers)
+                throw new Error("Credentials missing")
             }
         }
     }

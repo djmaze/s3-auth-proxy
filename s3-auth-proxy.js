@@ -3,7 +3,8 @@
 
 const http = require("http"),
     https = require("https"),
-    Signer = require("./signer")
+    Signer = require("./signer"),
+    winston = require("winston")
 
 const port = 8000,
     accessKeyId = process.env.ACCESSKEYID,
@@ -11,19 +12,30 @@ const port = 8000,
     upstreamURL = new URL(process.env.UPSTREAM_URL),
     upstreamAccessKeyId = process.env.UPSTREAM_ACCESSKEYID,
     upstreamSecretAccessKey = process.env.UPSTREAM_SECRETACCESSKEY,
-    allowedBuckets = process.env.ALLOWED_BUCKETS.split(",")
+    allowedBuckets = process.env.ALLOWED_BUCKETS.split(","),
+    logLevel = process.env.LOG_LEVEL || "info"
+
+const logger = winston.createLogger({
+    level: logLevel,
+    format: winston.format.combine(
+        winston.format.errors({ stack: true }),
+        winston.format.colorize(),
+        winston.format.simple()
+    ),
+    transports: [new winston.transports.Console()],
+})
 
 var main = function () {
     http.createServer(handle_request).listen(port, "0.0.0.0")
-    console.log(
+    logger.info(
         "101\tSTART\t-\t-\tProxying to " + upstreamURL.href + " on port " + port
     )
-    console.log("101\tSTART\t-\t-\tAllowed buckets:", allowedBuckets)
+    logger.info("101\tSTART\t-\t-\tAllowed buckets:", allowedBuckets)
 }
 
 var handle_request = function (client_request, client_response) {
     try {
-        const verificationSigner = new Signer(client_request)
+        const verificationSigner = new Signer(client_request, logger)
         const givenClientAuthorization = verificationSigner.authorizationHeader
         const correctClientAuthorization =
             verificationSigner.authorizationHeaderFor(
@@ -35,7 +47,7 @@ var handle_request = function (client_request, client_response) {
             givenClientAuthorization.replace(/\s/g, "") !==
             correctClientAuthorization.replace(/\s/g, "")
         ) {
-            console.error("incorrect authorization", givenClientAuthorization)
+            logger.error("incorrect authorization", givenClientAuthorization)
             client_response.writeHead(403)
             client_response.end()
             return
@@ -47,13 +59,13 @@ var handle_request = function (client_request, client_response) {
             !allowedBuckets.includes(bucket) &&
             !bucket.startsWith("probe-bucket-sign-")
         ) {
-            console.error("disallowed bucket", bucket)
+            logger.error("disallowed bucket", bucket)
             client_response.writeHead(403)
             client_response.end()
             return
         }
 
-        const signer = new Signer(client_request)
+        const signer = new Signer(client_request, logger)
         signer.changeAuthorization(
             upstreamURL.host,
             upstreamAccessKeyId,
@@ -94,7 +106,7 @@ var handle_request = function (client_request, client_response) {
                 size += chunk.length
             })
             upstream_response.addListener("end", function () {
-                console.log(
+                logger.info(
                     upstream_response.statusCode +
                         "\t" +
                         client_request.method +
@@ -106,8 +118,9 @@ var handle_request = function (client_request, client_response) {
                 client_response.end()
             })
         })
-    } catch (e) {
-        console.log(e)
+    } catch (err) {
+        logger.error(`Error handling request: ${client_request.url}`)
+        logger.error(err)
         client_response.writeHead(500)
         client_response.end()
         return
