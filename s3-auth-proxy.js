@@ -121,7 +121,21 @@ var handle_request = function (client_request, client_response) {
     } catch (err) {
         logger.error(`Error handling request: ${client_request.url}`)
         logger.error(err)
-        client_response.writeHead(500)
+        if (err.message === "Credentials missing") {
+            const url = new URL(
+                `${upstreamURL.protocol}//${upstreamURL.hostname}`
+            )
+            url.port = upstreamURL.port
+            url.pathname = client_request.url
+
+            client_response.writeHead(302, {
+                Location: url,
+            })
+            client_response.end()
+        } else {
+            client_response.writeHead(500)
+        }
+
         client_response.end()
         return
     }
