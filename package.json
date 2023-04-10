@@ -4,7 +4,7 @@
   "description": "s3-auth-proxy",
   "main": "s3-auth-proxy.js",
   "dependencies": {
-    "aws-sdk": "^2.814.0",
+    "aws-sdk": "^2.1354.0",
     "winston": "^3.6.0"
   },
   "devDependencies": {
